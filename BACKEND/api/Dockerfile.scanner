@@ -1,0 +1,8 @@
+FROM node:20-alpine
+
+# Install Docker CLI so the app can spawn kali-redteam scan containers
+RUN apk add --no-cache docker-cli
+
+WORKDIR /workspace/BACKEND/api
+
+# Dependencies will be installed at runtime via the docker-compose command

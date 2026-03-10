@@ -1,0 +1,87 @@
+version: "3.9"
+
+services:
+  scanner-api:
+    build:
+      context: ..
+      dockerfile: BACKEND/api/Dockerfile.scanner
+    working_dir: /workspace/BACKEND/api
+    command: [ "sh", "-c", "npm install && npm run start" ]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../:/workspace
+      - /workspace/BACKEND/api/node_modules
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DB_HOST: mysql-db
+      DB_PORT: "3306"
+      DB_USER: horus_app
+      DB_PASSWORD: HorusApp2026
+      DB_NAME: horus_db
+    depends_on:
+      - kali-scanner
+      - mysql-db
+
+  kali-scanner:
+    build:
+      context: ../BACKEND/labs/kali
+      dockerfile: Dockerfile
+    image: kali-security-scanner
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: security
+      POSTGRES_USER: security
+      POSTGRES_PASSWORD: security
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mysql-db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_DATABASE: horus_db
+      MYSQL_USER: horus_app
+      MYSQL_PASSWORD: HorusApp2026
+      MYSQL_ROOT_PASSWORD: root_password_change_me
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../BACKEND/database/schema.mysql.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  security-api:
+    build:
+      context: ..
+      dockerfile: BACKEND/api/Dockerfile.fastapi
+    ports:
+      - "8001:8001"
+    volumes:
+      - ../:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      KALI_CONTAINER: kali-security-scanner
+      ML_MODEL_PATH: /app/BACKEND/ai-orchestrator/engine/ml/models
+      AUTO_REMEDIATION: "false"
+      ML_INFERENCE_TIMEOUT_MS: "100"
+      CORRELATION_RULES_PATH: /app/BACKEND/ai-orchestrator/engine/correlation_rules.json
+    depends_on:
+      - kali-scanner
+      - db
+
+  ml-trainer:
+    build:
+      context: ..
+      dockerfile: BACKEND/ai-orchestrator/engine/ml/Dockerfile
+    profiles: [ "training" ]
+    volumes:
+      - ../BACKEND/ai-orchestrator/engine/ml/models:/workspace/BACKEND/ai-orchestrator/engine/ml/models
+      - ../BACKEND/ai-orchestrator/engine/ml/datasets:/workspace/BACKEND/ai-orchestrator/engine/ml/datasets
+
+volumes:
+  pgdata:
+  mysql_data:

@@ -1,0 +1,5 @@
+files_modified_per_second,files_renamed_per_second,files_deleted_per_second,unique_extensions_changed,entropy_avg_modified_files,entropy_delta,process_is_signed,process_has_network_access,process_spawned_by_suspicious,process_age_seconds,api_crypto_calls_per_second,honeypot_touched,honeypot_modified,vss_delete_attempt,backup_path_access,is_ransomware
+2,1,0,1,4.2,0.1,1,0,0,8600,0.1,0,0,0,1,0
+65,25,12,8,7.9,2.1,0,1,1,35,120,1,1,1,0,1
+18,4,2,2,5.0,0.3,1,1,0,1200,3,0,0,0,1,0
+72,33,21,10,7.8,2.7,0,1,1,20,160,1,1,1,0,1

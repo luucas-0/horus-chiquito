@@ -1,0 +1,6 @@
+{
+  "status": "fallback",
+  "reason": "optional_ml_dependencies_missing_or_training_failed",
+  "ransomware_samples": 4,
+  "network_samples": 4
+}

@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Black Eye — Scanner de seguridad con Nmap y Hydra. Escaneo profundo de red, deteccion de SO, servicios y vulnerabilidades.">
+    <title>Black Eye — Deep Security Scanner</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#x13082;</text></svg>">
+</head>
+
+<body>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="scanner-ring"></div>
+        <p class="loading-text" id="loadingText">Escaneando objetivo...</p>
+        <div class="loading-details" id="loadingDetails"></div>
+    </div>
+
+    <!-- Email Modal -->
+    <div class="email-modal-overlay" id="emailModalOverlay">
+        <div class="email-modal">
+            <div class="email-modal__header">
+                <span class="email-modal__title">ENVIAR REPORTE POR CORREO</span>
+                <button class="email-modal__close" id="emailModalClose" type="button" aria-label="Cerrar">x</button>
+            </div>
+            <div class="email-modal__body">
+                <label class="email-modal__label" for="emailModalInput">CORREO DESTINO</label>
+                <input class="scan-card__input email-modal__input" type="email" id="emailModalInput"
+                    placeholder="nombre@dominio.com" autocomplete="email" spellcheck="false" required>
+                <p class="email-modal__hint">Se descargara el PDF y se abrira tu correo con todo pre-configurado. Solo
+                    adjunta el archivo y envia.</p>
+                <p class="email-modal__error" id="emailModalError"></p>
+            </div>
+            <div class="email-modal__actions">
+                <button class="scan-card__btn email-modal__send" id="emailModalSend" type="button">ENVIAR</button>
+                <button class="btn-chat-action email-modal__cancel" id="emailModalCancel"
+                    type="button">CANCELAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="error-toast" id="errorToast">
+        <span class="error-toast__icon">[!]</span>
+        <span class="error-toast__message" id="errorMessage"></span>
+        <button class="error-toast__close" id="errorClose" aria-label="Cerrar">x</button>
+    </div>
+
+    <!-- ── NUEVO: FAB chatbot flotante ── -->
+    <button class="chat-fab" id="chatFabBtn" aria-label="Abrir asistente IA">
+        <span class="chat-fab__icon">𓂀</span>
+        <span class="chat-fab__label">IA</span>
+    </button>
+    <div class="chat-fab-panel" id="chatFabPanel" aria-hidden="true">
+        <div class="scan-card ai-chat-card">
+            <div class="section-header" style="display:flex;align-items:center;justify-content:space-between;">
+                <h2 class="section-header__title">Agente IA Conversacional</h2>
+                <button class="chat-fab-close" id="chatFabClose" type="button" aria-label="Cerrar">✕</button>
+            </div>
+            <div class="ai-chat-toolbar">
+                <span class="badge badge--ai-pending" id="aiStatusBadge">IA: verificando...</span>
+                <span class="ai-chat-toolbar__sim" id="aiLastSimulation">Ultima simulacion: --</span>
+            </div>
+            <div class="ai-chat-actions" id="aiQuickActions">
+                <button class="btn-chat-action" type="button" data-action="status">Estado IA</button>
+                <button class="btn-chat-action" type="button" data-action="history">Historial</button>
+                <button class="btn-chat-action" type="button" data-action="analyze-last">Analizar ultima simulacion</button>
+                <button class="btn-chat-action" type="button" data-action="download-last">Descargar PDF</button>
+                <button class="btn-chat-action" type="button" data-action="email-last">Enviar por correo</button>
+                <button class="btn-chat-action" type="button" data-action="help">Ayuda</button>
+            </div>
+            <div class="ai-chat-window" id="aiChatWindow" aria-live="polite"></div>
+            <form class="ai-chat-form" id="aiChatForm">
+                <input type="text" class="scan-card__input ai-chat-input" id="aiChatInput"
+                    placeholder='Escribe: "analiza simulacion 12", "descargar reporte ejecutivo ultima" o "enviar reporte ultima a correo@dominio.com"'
+                    autocomplete="off" spellcheck="false" required>
+                <button type="submit" class="scan-card__btn ai-chat-submit">ENVIAR</button>
+            </form>
+        </div>
+    </div>
+    <!-- ── FIN FAB chatbot ── -->
+
+    <!-- APP — ahora visible por defecto -->
+    <div class="container" id="appContainer">
+
+        <!-- Hero -->
+        <header class="hero">
+            <!-- ── NUEVO: recuadro globo 3D ── -->
+            <div class="hero__globe-wrap">
+                <canvas id="globeCanvas"></canvas>
+                <div class="hero__globe-overlay"></div>
+            </div>
+            <!-- ── FIN recuadro globo ── -->
+            <div class="hero__icon">𓂀</div>
+            <h1 class="hero__title">HORUS</h1>
+            <p class="hero__subtitle">
+                Scanner de seguridad profundo: descubrimiento de red, identificacion forzada de servicios,
+                deteccion de SO y pruebas de credenciales.
+            </p>
+        </header>
+
+        <!-- Mode Tabs -->
+        <div class="tabs" id="modeTabs">
+            <button class="tab active" data-mode="discover" id="tabDiscover">
+                <span class="tab__label">DESCUBRIR RED</span>
+            </button>
+            <button class="tab" data-mode="scan" id="tabScan">
+                <span class="tab__label">ESCANEO PROFUNDO</span>
+            </button>
+        </div>
+
+        <div class="workspace-layout">
+            <div class="workspace-main">
+
+                <!-- Discover Network Card -->
+                <section class="scan-card" id="discoverCard">
+                    <div class="scan-card__header">
+                        <label class="scan-card__label" for="subnetInput">SUBRED A EXPLORAR (CIDR)</label>
+                        <button class="btn-auto-detect" id="autoDetectBtn" type="button">DETECTAR RED</button>
+                    </div>
+                    <form class="scan-card__form" id="discoverForm">
+                        <input type="text" class="scan-card__input" id="subnetInput" placeholder="Ej: 192.168.78.0/24"
+                            autocomplete="off" spellcheck="false" required>
+                        <button type="submit" class="scan-card__btn" id="discoverBtn">
+                            DESCUBRIR
+                        </button>
+                    </form>
+                    <div class="auto-detect-info" id="autoDetectInfo" style="display: none;">
+                        <span class="auto-detect-info__label">Red detectada:</span>
+                        <span class="auto-detect-info__value" id="detectedNetwork">--</span>
+                        <span class="auto-detect-info__sep">|</span>
+                        <span class="auto-detect-info__label">IP local:</span>
+                        <span class="auto-detect-info__value" id="detectedIP">--</span>
+                    </div>
+                </section>
+
+                <!-- Scan Host Card -->
+                <section class="scan-card" id="scanCard" style="display: none;">
+                    <label class="scan-card__label" for="targetInput">IP OBJETIVO PARA ESCANEO PROFUNDO</label>
+                    <form class="scan-card__form" id="scanForm">
+                        <input type="text" class="scan-card__input" id="targetInput" placeholder="Ej: 192.168.78.1"
+                            autocomplete="off" spellcheck="false" required>
+                        <button type="submit" class="scan-card__btn" id="scanBtn">
+                            INICIAR ESCANEO
+                        </button>
+                    </form>
+                </section>
+
+                <!-- ADMIN USERS MANAGEMENT -->
+
+                <!-- ═══════ DISCOVERY RESULTS ═══════ -->
+                <section class="results" id="discoveryResults">
+
+                    <div class="info-bar" id="networkInfo">
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">SUBRED</span>
+                            <span class="info-bar__value" id="subnetValue">--</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">DISPOSITIVOS ACTIVOS</span>
+                            <span class="info-bar__value" id="hostsUp">0</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">TOTAL ANALIZADOS</span>
+                            <span class="info-bar__value" id="hostsTotal">0</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">TIEMPO</span>
+                            <span class="info-bar__value" id="discoverTime">--</span>
+                        </div>
+                    </div>
+
+                    <div class="command-log" id="discoverCmdLog">
+                        <div class="command-log__header">COMANDO NMAP EJECUTADO</div>
+                        <pre class="command-log__pre" id="discoverCmdText">--</pre>
+                    </div>
+
+                    <div class="result-card result-card--discover">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Dispositivos Encontrados</h2>
+                        </div>
+                        <table class="result-table" id="devicesTable">
+                            <thead>
+                                <tr>
+                                    <th>IP</th>
+                                    <th>Hostname</th>
+                                    <th>MAC</th>
+                                    <th>Fabricante</th>
+                                    <th>Accion</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devicesBody"></tbody>
+                        </table>
+                        <div class="empty-state" id="devicesEmpty" style="display: none;">
+                            <p class="empty-state__text">No se encontraron dispositivos activos en la subred</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ═══════ DEEP SCAN RESULTS ═══════ -->
+                <section class="results" id="scanResults">
+
+                    <div class="info-bar" id="targetInfo">
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">HOST</span>
+                            <span class="info-bar__value" id="hostValue">--</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">ESTADO</span>
+                            <span class="info-bar__value" id="hostStatus">--</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">PUERTOS ABIERTOS</span>
+                            <span class="info-bar__value" id="portCount">0</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">HYDRA TESTS</span>
+                            <span class="info-bar__value" id="hydraCount">0</span>
+                        </div>
+                        <div class="info-bar__sep"></div>
+                        <div class="info-bar__item">
+                            <span class="info-bar__label">TIEMPO</span>
+                            <span class="info-bar__value" id="scanTime">--</span>
+                        </div>
+                    </div>
+
+                    <div class="command-log" id="nmapCmdLog">
+                        <div class="command-log__header">COMANDO NMAP EJECUTADO</div>
+                        <pre class="command-log__pre" id="nmapCmdText">--</pre>
+                    </div>
+
+                    <div class="result-card result-card--network" id="networkArchCard">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Informacion de Red y Arquitectura</h2>
+                        </div>
+                        <div class="network-grid" id="networkGrid"></div>
+                    </div>
+
+                    <div class="result-card result-card--os" id="osCard" style="display: none;">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Deteccion de Sistema Operativo</h2>
+                        </div>
+                        <div id="osContent"></div>
+                    </div>
+
+                    <div class="result-card result-card--ports">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Puertos Abiertos y Servicios (Nmap)</h2>
+                        </div>
+                        <table class="result-table" id="portsTable">
+                            <thead>
+                                <tr>
+                                    <th>Puerto</th>
+                                    <th>Estado</th>
+                                    <th>Servicio</th>
+                                    <th>Producto</th>
+                                    <th>Version</th>
+                                    <th>Info</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portsBody"></tbody>
+                        </table>
+                        <div class="empty-state" id="portsEmpty" style="display: none;">
+                            <p class="empty-state__text">No se encontraron puertos abiertos</p>
+                        </div>
+                    </div>
+
+                    <div class="result-card result-card--trace" id="traceCard" style="display: none;">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Traceroute</h2>
+                        </div>
+                        <table class="result-table" id="traceTable">
+                            <thead>
+                                <tr>
+                                    <th>TTL</th>
+                                    <th>IP</th>
+                                    <th>Hostname</th>
+                                    <th>RTT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="traceBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="result-card result-card--vulns" id="vulnsCard" style="display: none;">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Vulnerabilidades Detectadas</h2>
+                        </div>
+                        <div id="vulnsContent"></div>
+                    </div>
+
+                    <div class="result-card result-card--hydra" id="hydraCard">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Pruebas de Credenciales (Hydra)</h2>
+                        </div>
+                        <div class="command-log command-log--inner" id="hydraCmdLog" style="display: none;">
+                            <div class="command-log__header">COMANDOS HYDRA EJECUTADOS</div>
+                            <pre class="command-log__pre" id="hydraCmdText">--</pre>
+                        </div>
+                        <table class="result-table" id="hydraTable">
+                            <thead>
+                                <tr>
+                                    <th>Puerto</th>
+                                    <th>Servicio</th>
+                                    <th>Estado</th>
+                                    <th>Riesgo</th>
+                                    <th>Detalle</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hydraBody"></tbody>
+                        </table>
+                        <div class="empty-state" id="hydraEmpty" style="display: none;">
+                            <p class="empty-state__text">No se encontraron servicios de autenticacion para probar con
+                                Hydra</p>
+                        </div>
+                    </div>
+
+                    <div class="result-card result-card--scripts" id="scriptsCard" style="display: none;">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Scripts NSE Ejecutados</h2>
+                        </div>
+                        <div id="scriptsContent"></div>
+                    </div>
+
+                </section>
+
+                <!-- ═══════ UNIFIED ANTI-RANSOMWARE MONITOR ═══════ -->
+                <section class="results active" id="unifiedGuardResults">
+                    <div class="result-card result-card--network">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Monitor Unificado Anti-Ransomware</h2>
+                            <button class="btn-chat-action" id="unifiedRefreshBtn" type="button">REFRESCAR</button>
+                        </div>
+                        <div class="unified-risk">
+                            <div class="unified-risk__score" id="unifiedRiskScore">0/100</div>
+                            <div class="unified-risk__status" id="unifiedRiskStatus">LOW</div>
+                        </div>
+                    </div>
+
+                    <div class="result-card result-card--network">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Endpoint Telemetry</h2>
+                        </div>
+                        <div class="unified-metrics" id="endpointMetrics"></div>
+                    </div>
+
+                    <div class="result-card result-card--ports">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Findings Recientes</h2>
+                        </div>
+                        <table class="result-table" id="unifiedFindingsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Fuente</th>
+                                    <th>Tipo</th>
+                                    <th>Severidad</th>
+                                    <th>Riesgo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unifiedFindingsBody"></tbody>
+                        </table>
+                        <div class="empty-state" id="unifiedFindingsEmpty" style="display:none;">
+                            <p class="empty-state__text">Sin findings en este momento</p>
+                        </div>
+                    </div>
+
+                    <div class="result-card result-card--vulns">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Correlaciones Activas</h2>
+                        </div>
+                        <ul class="unified-correlations" id="unifiedCorrelationsList"></ul>
+                    </div>
+
+                    <div class="result-card result-card--hydra">
+                        <div class="section-header">
+                            <h2 class="section-header__title">Remediación</h2>
+                        </div>
+                        <div class="scan-card__form unified-remediation">
+                            <input class="scan-card__input" id="remediationFindingId" type="text"
+                                placeholder="ID de finding (o vacío para usar el primero)">
+                            <button class="scan-card__btn" id="remediationPreviewBtn" type="button">PREVIEW</button>
+                            <button class="scan-card__btn" id="remediationExecuteBtn" type="button">EJECUTAR</button>
+                        </div>
+                        <pre class="command-log__pre" id="remediationOutput">--</pre>
+                    </div>
+                </section>
+
+                <!-- Footer -->
+                <footer class="footer">
+                    HORUS TECH Security Scanner // 2026 — Powered by Nmap + Hydra
+                </footer>
+
+            </div>
+
+            <aside class="ai-chat-dock" id="aiChatDock" aria-label="Panel de chat IA">
+                <section class="scan-card ai-chat-card" id="aiChatCard">
+                    <div class="section-header">
+                        <h2 class="section-header__title">Agente IA Conversacional</h2>
+                    </div>
+                    <div class="ai-chat-toolbar">
+                        <span class="badge badge--ai-pending" id="aiStatusBadge">IA: verificando...</span>
+                        <span class="ai-chat-toolbar__sim" id="aiLastSimulation">Ultima simulacion: --</span>
+                    </div>
+                    <div class="ai-chat-actions" id="aiQuickActions">
+                        <button class="btn-chat-action" type="button" data-action="status">Estado IA</button>
+                        <button class="btn-chat-action" type="button" data-action="history">Historial</button>
+                        <button class="btn-chat-action" type="button" data-action="analyze-last">Analizar ultima
+                            simulacion</button>
+                        <button class="btn-chat-action" type="button" data-action="download-last">Descargar PDF</button>
+                        <button class="btn-chat-action" type="button" data-action="email-last">Enviar por
+                            correo</button>
+                        <button class="btn-chat-action" type="button" data-action="help">Ayuda</button>
+                    </div>
+                    <div class="ai-chat-window" id="aiChatWindow" aria-live="polite"></div>
+                    <form class="ai-chat-form" id="aiChatForm">
+                        <input type="text" class="scan-card__input ai-chat-input" id="aiChatInput"
+                            placeholder='Escribe: "analiza simulacion 12", "descargar reporte ejecutivo ultima" o "enviar reporte ultima a correo@dominio.com"'
+                            autocomplete="off" spellcheck="false" required>
+                        <button type="submit" class="scan-card__btn ai-chat-submit">ENVIAR</button>
+                    </form>
+                </section>
+            </aside>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <!-- CYBER GLOBE BACKGROUND -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        (function () {
+            // ── NUEVO: globe en recuadro hero ──
+            const globeCanvas = document.getElementById('globeCanvas');
+            if (globeCanvas) {
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(75, globeCanvas.offsetWidth / globeCanvas.offsetHeight, 0.1, 1000);
+                camera.position.z = 4;
+
+                const renderer = new THREE.WebGLRenderer({ canvas: globeCanvas, antialias: true, alpha: true });
+                renderer.setSize(globeCanvas.offsetWidth, globeCanvas.offsetHeight);
+                renderer.setClearColor(0x000000, 0);
+
+                const light = new THREE.PointLight(0xffffff, 2);
+                light.position.set(5, 3, 5);
+                scene.add(light);
+                scene.add(new THREE.AmbientLight(0x404040));
+
+                const globe = new THREE.Mesh(
+                    new THREE.SphereGeometry(1, 60, 60),
+                    new THREE.MeshPhongMaterial({ color: 0x0a1a2a, wireframe: true })
+                );
+                scene.add(globe);
+
+                let mouseX = 0, mouseY = 0;
+                document.addEventListener('mousemove', function (e) {
+                    mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+                    mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+                });
+
+                function animate() {
+                    requestAnimationFrame(animate);
+                    globe.rotation.y += 0.003;
+                    globe.rotation.x = mouseY * 0.6;
+                    globe.rotation.y += mouseX * 0.02;
+                    renderer.render(scene, camera);
+                }
+                animate();
+
+                window.addEventListener('resize', function () {
+                    camera.aspect = globeCanvas.offsetWidth / globeCanvas.offsetHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(globeCanvas.offsetWidth, globeCanvas.offsetHeight);
+                });
+            }
+
+            // ── NUEVO: FAB toggle ──
+            const fabBtn = document.getElementById('chatFabBtn');
+            const fabPanel = document.getElementById('chatFabPanel');
+            const fabClose = document.getElementById('chatFabClose');
+
+            function openChat() {
+                fabPanel.classList.add('active');
+                fabPanel.setAttribute('aria-hidden', 'false');
+                fabBtn.classList.add('chat-fab--open');
+            }
+            function closeChat() {
+                fabPanel.classList.remove('active');
+                fabPanel.setAttribute('aria-hidden', 'true');
+                fabBtn.classList.remove('chat-fab--open');
+            }
+            if (fabBtn) fabBtn.addEventListener('click', function () {
+                fabPanel.classList.contains('active') ? closeChat() : openChat();
+            });
+            if (fabClose) fabClose.addEventListener('click', closeChat);
+        })();
+    </script>
+</body>
+
+</html>

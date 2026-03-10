@@ -1,0 +1,23 @@
+[
+  {
+    "id": "WANNA_CRY_PATTERN",
+    "conditions": ["smb_v1_enabled", "mass_file_encryption", "vss_delete_attempt"],
+    "severity": "CRITICAL",
+    "confidence": 0.95,
+    "action": "ISOLATE_HOST_IMMEDIATELY"
+  },
+  {
+    "id": "RDP_INTRUSION",
+    "conditions": ["rdp_exposed_public", "default_credentials_found", "new_unknown_process"],
+    "severity": "CRITICAL",
+    "confidence": 0.9,
+    "action": "BLOCK_RDP_AND_ALERT"
+  },
+  {
+    "id": "LATERAL_MOVEMENT",
+    "conditions": ["smb_open_AND_mass_file_write", "multiple_hosts_affected"],
+    "severity": "HIGH",
+    "confidence": 0.85,
+    "action": "SEGMENT_NETWORK"
+  }
+]

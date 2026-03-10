@@ -1,0 +1,48 @@
+services:
+  lab-vuln-host-clone:
+    build:
+      context: ./vulnerable-target
+      dockerfile: Dockerfile
+    image: unified-lab-vuln-clone:latest
+    container_name: lab-vuln-host-clone
+    hostname: lab-vuln-host-clone
+    restart: unless-stopped
+    networks:
+      lab_net:
+        ipv4_address: 172.28.10.20
+    volumes:
+      - lab_data_clone:/srv/labdata
+      - lab_backups_clone:/srv/backups
+    ports:
+      - "3121:21"
+      - "3222:22"
+      - "3323:23"
+      - "38080:80"
+      - "3445:445"
+
+  lab-ransom-attacker-clone:
+    image: alpine:3.20
+    container_name: lab-ransom-attacker-clone
+    hostname: lab-ransom-attacker-clone
+    restart: unless-stopped
+    depends_on:
+      - lab-vuln-host-clone
+    networks:
+      lab_net:
+        ipv4_address: 172.28.10.67
+    volumes:
+      - lab_data_clone:/srv/labdata
+      - lab_backups_clone:/srv/backups
+    command: ["sh", "-lc", "mkdir -p /srv/labdata /srv/backups && tail -f /dev/null"]
+
+networks:
+  lab_net:
+    name: lab_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.10.0/24
+
+volumes:
+  lab_data_clone:
+  lab_backups_clone:

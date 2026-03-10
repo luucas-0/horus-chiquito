@@ -1,0 +1,5 @@
+open_critical_ports_count,services_with_weak_credentials,unencrypted_services_count,smb_v1_enabled,rdp_exposed_public,outdated_service_versions,critical_cves_detected,default_credentials_found,empty_password_services,hosts_with_smb_open,lateral_movement_risk,risk_label
+0,0,0,0,0,0,0,0,0,0,0.0,0
+2,1,1,1,1,4,2,1,0,3,0.85,1
+1,0,1,0,0,1,0,0,0,1,0.25,0
+3,2,2,1,1,6,4,2,1,5,0.95,1
